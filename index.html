@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
     
-    <!-- Load the local AWS Chime SDK -->
     <script src="amazon-chime-sdk.min.js"></script>
-
+    
     <style>
         .container { margin: 20px; font-family: Arial, sans-serif; }
         .video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
@@ -82,7 +81,7 @@
                 const logger = new ChimeSDK.ConsoleLogger('ChimeMeetingLogs', ChimeSDK.LogLevel.INFO);
                 const deviceController = new ChimeSDK.DefaultDeviceController(logger);
                 const config = new ChimeSDK.MeetingSessionConfiguration(data.meeting, data.attendee);
-                config.enableEventIngestion = false; // Prevent logging error
+                config.enableEventIngestion = false;
                 meetingSession = new ChimeSDK.DefaultMeetingSession(config, logger, deviceController);
                 await startAudioAndVideo();
             } catch (error) {
@@ -94,7 +93,11 @@
         async function startAudioAndVideo() {
             try {
                 const audioInputDevices = await meetingSession.audioVideo.listAudioInputDevices();
-                await meetingSession.audioVideo.chooseAudioInputDevice(audioInputDevices[0]?.deviceId || null);
+                if (meetingSession.audioVideo.chooseAudioTransformInputDevice) {
+                    await meetingSession.audioVideo.chooseAudioTransformInputDevice(audioInputDevices[0]?.deviceId || null);
+                } else {
+                    await meetingSession.audioVideo.chooseAudioInputDevice(audioInputDevices[0]?.deviceId || null);
+                }
                 const videoInputDevices = await meetingSession.audioVideo.listVideoInputDevices();
                 await meetingSession.audioVideo.chooseVideoInputDevice(videoInputDevices[0]?.deviceId || null);
                 meetingSession.audioVideo.startLocalVideoTile();
