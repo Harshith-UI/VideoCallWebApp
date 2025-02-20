@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
-    <!-- No script tag here - we'll load the SDK dynamically -->
+    
+    <!-- Load the local AWS Chime SDK -->
+    <script src="amazon-chime-sdk.min.js"></script>
+
     <style>
         .container { 
             margin: 20px; 
@@ -69,40 +72,21 @@
             border-radius: 4px;
             width: 300px;
         }
-        #sdkStatus {
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
-        .status-ok {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-        }
-        .status-error {
-            background-color: #ffebee;
-            color: #c62828;
-        }
-        .status-loading {
-            background-color: #fff8e1;
-            color: #f57f17;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>AWS Chime Meeting</h2>
-        
-        <div id="sdkStatus" class="status-loading">Loading AWS Chime SDK...</div>
-        
+
         <div class="join-form">
             <h3>Join Existing Meeting</h3>
             <input type="text" id="meetingIdInput" placeholder="Enter Meeting ID">
-            <button id="joinBtn" disabled onclick="joinMeeting()">Join Meeting</button>
+            <button id="joinBtn" onclick="joinMeeting()">Join Meeting</button>
         </div>
 
         <div class="controls">
-            <button id="createBtn" disabled onclick="createMeeting()">Create New Meeting</button>
-            <button id="leaveBtn" disabled onclick="leaveMeeting()">Leave Meeting</button>
+            <button id="createBtn" onclick="createMeeting()">Create New Meeting</button>
+            <button id="leaveBtn" onclick="leaveMeeting()">Leave Meeting</button>
         </div>
 
         <div id="meetingInfo">Meeting info will appear here...</div>
@@ -119,80 +103,17 @@
 
     <script>
         let meetingSession;
-        const statusDiv = document.getElementById('sdkStatus');
-        const createBtn = document.getElementById('createBtn');
-        const joinBtn = document.getElementById('joinBtn');
-        const leaveBtn = document.getElementById('leaveBtn');
-        
-        // CDN URLs to try in order
-        const cdnUrls = [
-            'https://unpkg.com/amazon-chime-sdk-js@3.11.0/dist/amazon-chime-sdk.min.js',
-            'https://cdn.jsdelivr.net/npm/amazon-chime-sdk-js@3.11.0/dist/amazon-chime-sdk.min.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/amazon-chime-sdk-js/3.11.0/amazon-chime-sdk.min.js'
-        ];
-        
-        // Try loading the SDK from multiple CDNs
-        async function loadSDK() {
-            statusDiv.textContent = 'Attempting to load AWS Chime SDK...';
-            statusDiv.className = 'status-loading';
-            
-            for (let i = 0; i < cdnUrls.length; i++) {
-                try {
-                    await loadScript(cdnUrls[i]);
-                    // If we get here, the script loaded successfully
-                    statusDiv.textContent = '✅ AWS Chime SDK loaded successfully!';
-                    statusDiv.className = 'status-ok';
-                    
-                    // Enable buttons
-                    createBtn.disabled = false;
-                    joinBtn.disabled = false;
-                    leaveBtn.disabled = false;
-                    
-                    return true;
-                } catch (e) {
-                    console.warn(`Failed to load SDK from ${cdnUrls[i]}`, e);
-                    // Continue to next CDN
-                }
-            }
-            
-            // If we get here, all CDNs failed
-            statusDiv.textContent = '❌ Failed to load AWS Chime SDK from all CDNs. Please check your network connection.';
-            statusDiv.className = 'status-error';
-            return false;
-        }
-        
-        // Promise-based script loader
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = () => {
-                    if (typeof ChimeSDK !== 'undefined') {
-                        resolve();
-                    } else {
-                        reject(new Error('Script loaded but SDK not defined'));
-                    }
-                };
-                script.onerror = () => reject(new Error(`Failed to load script from ${src}`));
-                document.head.appendChild(script);
-            });
-        }
-        
-        // Load the SDK when the page loads
-        window.addEventListener('load', loadSDK);
 
         async function createMeeting() {
             if (typeof ChimeSDK === 'undefined') {
-                alert("AWS Chime SDK is not loaded. Please refresh the page.");
+                alert("AWS Chime SDK is not loaded. Please check the script file.");
                 return;
             }
 
             try {
                 const response = await fetch('https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 const data = await response.json();
@@ -209,7 +130,7 @@
 
         async function joinMeeting() {
             if (typeof ChimeSDK === 'undefined') {
-                alert("AWS Chime SDK is not loaded. Please refresh the page.");
+                alert("AWS Chime SDK is not loaded. Please check the script file.");
                 return;
             }
 
@@ -222,9 +143,7 @@
             try {
                 const response = await fetch('https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ meetingId })
                 });
 
@@ -239,23 +158,12 @@
 
         async function setupMeetingSession(data) {
             try {
-                const logger = new ChimeSDK.ConsoleLogger(
-                    'ChimeMeetingLogs',
-                    ChimeSDK.LogLevel.INFO
-                );
-
+                const logger = new ChimeSDK.ConsoleLogger('ChimeMeetingLogs', ChimeSDK.LogLevel.INFO);
                 const deviceController = new ChimeSDK.DefaultDeviceController(logger);
 
-                const configuration = new ChimeSDK.MeetingSessionConfiguration(
-                    data.meeting,
-                    data.attendee
-                );
+                const configuration = new ChimeSDK.MeetingSessionConfiguration(data.meeting, data.attendee);
 
-                meetingSession = new ChimeSDK.DefaultMeetingSession(
-                    configuration,
-                    logger,
-                    deviceController
-                );
+                meetingSession = new ChimeSDK.DefaultMeetingSession(configuration, logger, deviceController);
 
                 // Start audio/video
                 await meetingSession.audioVideo.start();
@@ -263,19 +171,13 @@
 
                 // Bind local video
                 const localTileId = 1;
-                meetingSession.audioVideo.bindVideoElement(
-                    localTileId,
-                    document.getElementById('localVideo')
-                );
+                meetingSession.audioVideo.bindVideoElement(localTileId, document.getElementById('localVideo'));
 
                 // Handle remote videos
                 meetingSession.audioVideo.addVideoTileObserver({
                     videoTileDidUpdate: (tileState) => {
                         if (!tileState.localTile) {
-                            meetingSession.audioVideo.bindVideoElement(
-                                tileState.tileId,
-                                document.getElementById('remoteVideo')
-                            );
+                            meetingSession.audioVideo.bindVideoElement(tileState.tileId, document.getElementById('remoteVideo'));
                         }
                     }
                 });
