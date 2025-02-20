@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
-    <script src="https://unpkg.com/amazon-chime-sdk-js@latest"></script>
+    <!-- Using specific version from the official AWS CDN -->
+    <script src="https://sdk.chime.aws/js/amazon-chime-sdk-js-3.11.0.min.js"></script>
     <style>
         .container { 
             margin: 20px; 
@@ -96,19 +97,27 @@
 
     <script>
         let meetingSession;
-
-        // Check if ChimeSDK is loaded
+        
+        // Check if AWS Chime SDK is loaded properly
         window.onload = function() {
-            if (typeof ChimeSDK === 'undefined') {
-                console.error("ChimeSDK failed to load.");
-                alert("Failed to load AWS Chime SDK. Please check your network or CDN link.");
+            if (typeof AWS === 'undefined' || typeof AWS.Chime === 'undefined') {
+                console.error("AWS Chime SDK failed to load.");
+                document.getElementById('meetingInfo').textContent = 
+                    'Error: AWS Chime SDK failed to load.\nPlease check your network connection and refresh the page.';
+                
+                // Disable buttons if SDK isn't loaded
+                document.querySelectorAll('button').forEach(button => {
+                    button.disabled = true;
+                });
                 return;
+            } else {
+                console.log("AWS Chime SDK loaded successfully.");
             }
         };
 
         async function createMeeting() {
-            if (typeof ChimeSDK === 'undefined') {
-                alert("AWS Chime SDK is not loaded.");
+            if (typeof AWS === 'undefined' || typeof AWS.Chime === 'undefined') {
+                alert("AWS Chime SDK is not loaded. Please refresh the page.");
                 return;
             }
 
@@ -128,13 +137,13 @@
                 await setupMeetingSession(data);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to create meeting: ' + error.message);
+                document.getElementById('meetingInfo').textContent = 'Failed to create meeting: ' + error.message;
             }
         }
 
         async function joinMeeting() {
-            if (typeof ChimeSDK === 'undefined') {
-                alert("AWS Chime SDK is not loaded.");
+            if (typeof AWS === 'undefined' || typeof AWS.Chime === 'undefined') {
+                alert("AWS Chime SDK is not loaded. Please refresh the page.");
                 return;
             }
 
@@ -155,27 +164,28 @@
 
                 const data = await response.json();
                 await setupMeetingSession(data);
+                document.getElementById('meetingInfo').textContent = 'Successfully joined meeting: ' + meetingId;
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to join meeting: ' + error.message);
+                document.getElementById('meetingInfo').textContent = 'Failed to join meeting: ' + error.message;
             }
         }
 
         async function setupMeetingSession(data) {
             try {
-                const logger = new ChimeSDK.ConsoleLogger(
+                const logger = new AWS.Chime.ConsoleLogger(
                     'ChimeMeetingLogs',
-                    ChimeSDK.LogLevel.INFO
+                    AWS.Chime.LogLevel.INFO
                 );
 
-                const deviceController = new ChimeSDK.DefaultDeviceController(logger);
+                const deviceController = new AWS.Chime.DefaultDeviceController(logger);
 
-                const configuration = new ChimeSDK.MeetingSessionConfiguration(
+                const configuration = new AWS.Chime.MeetingSessionConfiguration(
                     data.meeting,
                     data.attendee
                 );
 
-                meetingSession = new ChimeSDK.DefaultMeetingSession(
+                meetingSession = new AWS.Chime.DefaultMeetingSession(
                     configuration,
                     logger,
                     deviceController
@@ -206,7 +216,7 @@
 
             } catch (error) {
                 console.error('Error setting up meeting:', error);
-                alert('Failed to setup meeting: ' + error.message);
+                document.getElementById('meetingInfo').textContent = 'Failed to setup meeting: ' + error.message;
             }
         }
 
@@ -215,7 +225,9 @@
                 meetingSession.audioVideo.stop();
                 document.getElementById('localVideo').srcObject = null;
                 document.getElementById('remoteVideo').srcObject = null;
-                document.getElementById('meetingInfo').textContent = 'Meeting info will appear here...';
+                document.getElementById('meetingInfo').textContent = 'Left meeting successfully.';
+            } else {
+                document.getElementById('meetingInfo').textContent = 'No active meeting to leave.';
             }
         }
     </script>
