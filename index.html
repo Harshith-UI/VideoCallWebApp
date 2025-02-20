@@ -4,200 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
-    
-    <!-- Load the local AWS Chime SDK -->
-    <script src="amazon-chime-sdk.min.js"></script>
-
+    <script src="https://sdk.amazonaws.com/js/amazon-chime-sdk.min.js"></script>
     <style>
-        .container { 
-            margin: 20px; 
+        body {
             font-family: Arial, sans-serif;
-        }
-        .video-grid { 
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        .video-tile {
-            background: #000;
-            min-height: 300px;
-            border-radius: 8px;
-            overflow: hidden;
+            text-align: center;
         }
         video {
-            width: 100%;
-            height: 100%;
-        }
-        .controls {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f5f5f5;
-            border-radius: 8px;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            border: none;
-            border-radius: 4px;
-            background: #2196F3;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #1976D2;
-        }
-        button:disabled {
-            background: #b0bec5;
-            cursor: not-allowed;
-        }
-        #meetingInfo {
-            margin: 10px 0;
-            padding: 10px;
-            background: #e3f2fd;
-            border-radius: 4px;
-            font-family: monospace;
-            white-space: pre-wrap;
-        }
-        .join-form {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f5f5f5;
-            border-radius: 8px;
-        }
-        input {
-            padding: 8px;
-            margin: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            width: 300px;
+            width: 45%;
+            height: 300px;
+            background: black;
+            margin: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>AWS Chime Meeting</h2>
 
-        <div class="join-form">
-            <h3>Join Existing Meeting</h3>
-            <input type="text" id="meetingIdInput" placeholder="Enter Meeting ID">
-            <button id="joinBtn" onclick="joinMeeting()">Join Meeting</button>
-        </div>
+    <h1>AWS Chime Meeting</h1>
 
-        <div class="controls">
-            <button id="createBtn" onclick="createMeeting()">Create New Meeting</button>
-            <button id="leaveBtn" onclick="leaveMeeting()">Leave Meeting</button>
-        </div>
+    <div>
+        <h3>Join Existing Meeting</h3>
+        <input type="text" id="meetingId" placeholder="Enter Meeting ID">
+        <button onclick="joinMeeting()">Join Meeting</button>
+    </div>
 
-        <div id="meetingInfo">Meeting info will appear here...</div>
-        
-        <div class="video-grid">
-            <div class="video-tile">
-                <video id="localVideo" autoplay muted></video>
-            </div>
-            <div class="video-tile">
-                <video id="remoteVideo" autoplay></video>
-            </div>
-        </div>
+    <div>
+        <button onclick="createMeeting()">Create New Meeting</button>
+        <button onclick="leaveMeeting()">Leave Meeting</button>
+    </div>
+
+    <p id="status"></p>
+
+    <div>
+        <video id="localVideo" autoplay></video>
+        <video id="remoteVideo" autoplay></video>
     </div>
 
     <script>
         let meetingSession;
 
         async function createMeeting() {
-            if (typeof ChimeSDK === 'undefined') {
-                alert("AWS Chime SDK is not loaded. Please check the script file.");
-                return;
-            }
-
-            try {
-                const response = await fetch('https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                const data = await response.json();
-                document.getElementById('meetingInfo').textContent = 
-                    'Meeting ID: ' + data.meeting.MeetingId + '\n\n' +
-                    'Share this Meeting ID with others to join!';
-                
-                await setupMeetingSession(data);
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('meetingInfo').textContent = 'Failed to create meeting: ' + error.message;
-            }
+            const response = await fetch('https://your-backend-api.com/createMeeting', { method: 'POST' });
+            const data = await response.json();
+            document.getElementById('meetingId').value = data.Meeting.MeetingId;
+            joinMeeting();
         }
 
         async function joinMeeting() {
-            if (typeof ChimeSDK === 'undefined') {
-                alert("AWS Chime SDK is not loaded. Please check the script file.");
-                return;
-            }
-
-            const meetingId = document.getElementById('meetingIdInput').value;
+            const meetingId = document.getElementById('meetingId').value;
             if (!meetingId) {
-                alert('Please enter a Meeting ID');
+                alert("Please enter a Meeting ID");
                 return;
             }
 
-            try {
-                const response = await fetch('https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ meetingId })
-                });
+            const response = await fetch(`https://your-backend-api.com/joinMeeting?meetingId=${meetingId}`);
+            const data = await response.json();
 
-                const data = await response.json();
-                await setupMeetingSession(data);
-                document.getElementById('meetingInfo').textContent = 'Successfully joined meeting: ' + meetingId;
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('meetingInfo').textContent = 'Failed to join meeting: ' + error.message;
-            }
+            const logger = new ChimeSDK.ConsoleLogger('ChimeMeetingLogs', ChimeSDK.LogLevel.INFO);
+            const deviceController = new ChimeSDK.DefaultDeviceController(logger);
+
+            meetingSession = new ChimeSDK.MeetingSessionConfiguration(data.Meeting, data.Attendee);
+            meetingSession = new ChimeSDK.DefaultMeetingSession(meetingSession, logger, deviceController);
+
+            await startAudioAndVideo();
         }
 
-        async function setupMeetingSession(data) {
-            try {
-                const logger = new ChimeSDK.ConsoleLogger('ChimeMeetingLogs', ChimeSDK.LogLevel.INFO);
-                const deviceController = new ChimeSDK.DefaultDeviceController(logger);
+        async function startAudioAndVideo() {
+            const audioInputDevices = await meetingSession.audioVideo.listAudioInputDevices();
+            await meetingSession.audioVideo.chooseAudioInputDevice(audioInputDevices[0].deviceId);
 
-                const configuration = new ChimeSDK.MeetingSessionConfiguration(data.meeting, data.attendee);
+            const videoInputDevices = await meetingSession.audioVideo.listVideoInputDevices();
+            await meetingSession.audioVideo.chooseVideoInputDevice(videoInputDevices[0].deviceId);
 
-                meetingSession = new ChimeSDK.DefaultMeetingSession(configuration, logger, deviceController);
+            meetingSession.audioVideo.startLocalVideoTile();
 
-                // Start audio/video
-                await meetingSession.audioVideo.start();
-                await meetingSession.audioVideo.startLocalVideoTile();
-
-                // Bind local video
-                const localTileId = 1;
-                meetingSession.audioVideo.bindVideoElement(localTileId, document.getElementById('localVideo'));
-
-                // Handle remote videos
-                meetingSession.audioVideo.addVideoTileObserver({
-                    videoTileDidUpdate: (tileState) => {
-                        if (!tileState.localTile) {
-                            meetingSession.audioVideo.bindVideoElement(tileState.tileId, document.getElementById('remoteVideo'));
-                        }
+            meetingSession.audioVideo.addObserver({
+                videoTileDidUpdate: tileState => {
+                    if (!tileState.localTile) {
+                        const videoElement = document.getElementById('remoteVideo');
+                        meetingSession.audioVideo.bindVideoElement(tileState.tileId, videoElement);
+                    } else {
+                        const localVideoElement = document.getElementById('localVideo');
+                        meetingSession.audioVideo.bindVideoElement(tileState.tileId, localVideoElement);
                     }
-                });
+                }
+            });
 
-            } catch (error) {
-                console.error('Error setting up meeting:', error);
-                document.getElementById('meetingInfo').textContent = 'Failed to setup meeting: ' + error.message;
-            }
+            meetingSession.audioVideo.start();
+            document.getElementById("status").innerText = "Meeting started successfully!";
         }
 
         function leaveMeeting() {
             if (meetingSession) {
                 meetingSession.audioVideo.stop();
-                document.getElementById('localVideo').srcObject = null;
-                document.getElementById('remoteVideo').srcObject = null;
-                document.getElementById('meetingInfo').textContent = 'Left meeting successfully.';
-            } else {
-                document.getElementById('meetingInfo').textContent = 'No active meeting to leave.';
+                document.getElementById("status").innerText = "Left the meeting.";
             }
         }
     </script>
+
 </body>
 </html>
