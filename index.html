@@ -1,111 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>AWS Chime Basic Example</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-    }
-    button {
-      margin-right: 10px;
-      padding: 10px 20px;
-      cursor: pointer;
-    }
-    video {
-      display: block;
-      margin-top: 20px;
-      background-color: #000;
-      width: 600px;
-      height: 400px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Chime Video Call</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #video-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        video {
+            width: 300px;
+            height: 200px;
+            background: #000;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
-  <h1>AWS Chime Video Call (Basic)</h1>
-  <button id="createMeetingBtn">Create Meeting</button>
-  <button id="joinMeetingBtn">Join Meeting</button>
-  <button id="shareScreenBtn">Share Screen</button>
-  <video id="video" autoplay playsinline></video>
-  <script src="https://unpkg.com/amazon-chime-sdk-js@latest"></script>
-  <script>
-    const CREATE_MEETING_URL = 'https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting';
-    let meetingData = null;
-    let meetingSession = null;
+    <h1>AWS Chime Video Call</h1>
+    <button id="start-meeting">Start Meeting</button>
+    <div id="video-container">
+        <!-- Video elements will be added here -->
+    </div>
 
-    document.getElementById('createMeetingBtn').addEventListener('click', async () => {
-      try {
-        const response = await fetch(CREATE_MEETING_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to create meeting');
-        }
-        meetingData = await response.json();
-        console.log('Meeting created:', meetingData);
-        alert('Meeting created successfully!');
-      } catch (error) {
-        console.error(error);
-        alert('Error creating meeting');
-      }
-    });
+    <!-- AWS Chime SDK -->
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1355.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-chime-sdk-js/2.0.0/amazon-chime-sdk.min.js"></script>
+    <script>
+        const apiUrl = 'YOUR_API_GATEWAY_URL'; // Replace with your HTTP API Gateway URL
 
-    document.getElementById('joinMeetingBtn').addEventListener('click', async () => {
-      try {
-        if (!meetingData) {
-          alert('Please create a meeting first.');
-          return;
-        }
-        const { meeting, attendee } = meetingData;
-        const logger = new ChimeSDK.ConsoleLogger('ChimeSDK', ChimeSDK.LogLevel.INFO);
-        const deviceController = new ChimeSDK.DefaultDeviceController(logger);
-        const configuration = new ChimeSDK.MeetingSessionConfiguration(meeting, attendee);
-        meetingSession = new ChimeSDK.DefaultMeetingSession(configuration, logger, deviceController);
-        const audioInputDevices = await deviceController.listAudioInputDevices();
-        if (audioInputDevices.length > 0) {
-          await deviceController.chooseAudioInputDevice(audioInputDevices[0].deviceId);
-        }
-        const videoInputDevices = await deviceController.listVideoInputDevices();
-        if (videoInputDevices.length > 0) {
-          await meetingSession.audioVideo.chooseVideoInputDevice(videoInputDevices[0].deviceId);
-        }
-        meetingSession.audioVideo.start();
-        meetingSession.audioVideo.startLocalVideoTile();
-        meetingSession.audioVideo.addObserver({
-          videoTileDidUpdate: tileState => {
-            if (!tileState.boundAttendeeId) {
-              return;
+        let meetingSession = null;
+        const videoContainer = document.getElementById('video-container');
+
+        // Function to create and join a meeting
+        async function startMeeting() {
+            try {
+                // Call your Lambda function via API Gateway to create a meeting and attendee
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                const data = await response.json();
+                console.log('Meeting and Attendee Created:', data);
+
+                const { meeting, attendee } = data;
+
+                // Initialize the Chime SDK meeting session
+                const logger = new ChimeSDK.ConsoleLogger('ChimeSDK', ChimeSDK.LogLevel.INFO);
+                const deviceController = new ChimeSDK.DefaultDeviceController(logger);
+                const configuration = new ChimeSDK.MeetingSessionConfiguration(meeting, attendee);
+
+                meetingSession = new ChimeSDK.DefaultMeetingSession(configuration, logger, deviceController);
+
+                // Set up audio and video
+                const audioInputDevices = await meetingSession.audioVideo.listAudioInputDevices();
+                const videoInputDevices = await meetingSession.audioVideo.listVideoInputDevices();
+
+                await meetingSession.audioVideo.chooseAudioInputDevice(audioInputDevices[0].deviceId);
+                await meetingSession.audioVideo.chooseVideoInputDevice(videoInputDevices[0].deviceId);
+
+                // Start the session
+                meetingSession.audioVideo.start();
+
+                // Add video tiles
+                meetingSession.audioVideo.addObserver({
+                    videoTileDidUpdate: (tileState) => {
+                        if (tileState.boundAttendeeId && tileState.tileId) {
+                            const videoElement = document.getElementById(`video-${tileState.tileId}`);
+                            if (!videoElement) {
+                                const newVideoElement = document.createElement('video');
+                                newVideoElement.id = `video-${tileState.tileId}`;
+                                videoContainer.appendChild(newVideoElement);
+                                meetingSession.audioVideo.bindVideoElement(tileState.tileId, newVideoElement);
+                            }
+                        }
+                    },
+                    videoTileWasRemoved: (tileId) => {
+                        const videoElement = document.getElementById(`video-${tileId}`);
+                        if (videoElement) {
+                            videoContainer.removeChild(videoElement);
+                        }
+                    },
+                });
+
+                // Start local video
+                meetingSession.audioVideo.startLocalVideoTile();
+            } catch (error) {
+                console.error('Error starting meeting:', error);
             }
-            const tileId = tileState.tileId;
-            meetingSession.audioVideo.bindVideoElement(
-              tileId,
-              document.getElementById('video')
-            );
-          }
-        });
-        alert('Joined meeting successfully!');
-      } catch (error) {
-        console.error(error);
-        alert('Error joining meeting');
-      }
-    });
-
-    document.getElementById('shareScreenBtn').addEventListener('click', async () => {
-      try {
-        if (!meetingSession) {
-          alert('Join the meeting before sharing your screen.');
-          return;
         }
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        meetingSession.audioVideo.startContentShare(screenStream);
-        alert('Screen sharing started!');
-      } catch (error) {
-        console.error(error);
-        alert('Error starting screen share');
-      }
-    });
-  </script>
+
+        // Event listener for the "Start Meeting" button
+        document.getElementById('start-meeting').addEventListener('click', startMeeting);
+    </script>
 </body>
 </html>
