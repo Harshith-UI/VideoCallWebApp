@@ -45,73 +45,120 @@
     <script>
         let meetingSession;
 
+        // CREATE NEW MEETING
         async function createMeeting() {
             try {
-                const response = await fetch('https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }
-                });
+                const response = await fetch(
+                    'https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', 
+                    {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
                 const data = await response.json();
-                document.getElementById('meetingInfo').textContent = `Meeting ID: ${data.Meeting.MeetingId}`;
+
+                // IMPORTANT: Use data.meeting (lowercase)
+                document.getElementById('meetingInfo').textContent = `Meeting ID: ${data.meeting.MeetingId}`;
+                
                 await setupMeetingSession(data);
             } catch (error) {
                 console.error('Error:', error);
-                document.getElementById('meetingInfo').textContent = `Failed to create meeting: ${error.message}`;
+                document.getElementById('meetingInfo').textContent = 
+                    'Failed to create meeting: ' + error.message;
             }
         }
 
+        // JOIN EXISTING MEETING
         async function joinMeeting() {
             const meetingId = document.getElementById('meetingIdInput').value;
-            if (!meetingId) return alert('Please enter a Meeting ID');
+            if (!meetingId) {
+                alert('Please enter a Meeting ID');
+                return;
+            }
             try {
-                const response = await fetch('https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ meetingId })
-                });
+                const response = await fetch(
+                    'https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting', 
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ meetingId })
+                    }
+                );
                 const data = await response.json();
+
+                // IMPORTANT: Use data.meeting (lowercase)
+                document.getElementById('meetingInfo').textContent = 
+                    `Joined meeting: ${meetingId}`;
+
                 await setupMeetingSession(data);
-                document.getElementById('meetingInfo').textContent = `Joined meeting: ${meetingId}`;
             } catch (error) {
                 console.error('Error:', error);
-                document.getElementById('meetingInfo').textContent = `Failed to join meeting: ${error.message}`;
+                document.getElementById('meetingInfo').textContent = 
+                    'Failed to join meeting: ' + error.message;
             }
         }
 
+        // SETUP MEETING SESSION
         async function setupMeetingSession(data) {
             try {
+                // Request permissions
                 await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
                 const logger = new ChimeSDK.ConsoleLogger('ChimeMeetingLogs', ChimeSDK.LogLevel.INFO);
                 const deviceController = new ChimeSDK.DefaultDeviceController(logger);
-                
-                const config = new ChimeSDK.MeetingSessionConfiguration(data.Meeting, data.Attendee);
-                meetingSession = new ChimeSDK.DefaultMeetingSession(config, logger, deviceController);
+
+                // IMPORTANT: Use data.meeting and data.attendee (lowercase)
+                const config = new ChimeSDK.MeetingSessionConfiguration(
+                    data.meeting,
+                    data.attendee
+                );
+
+                config.enableEventIngestion = false;
+
+                meetingSession = new ChimeSDK.DefaultMeetingSession(
+                    config,
+                    logger,
+                    deviceController
+                );
 
                 await startAudioAndVideo();
             } catch (error) {
                 console.error('Error setting up meeting:', error);
-                document.getElementById('meetingInfo').textContent = `Failed to setup meeting: ${error.message}`;
+                document.getElementById('meetingInfo').textContent = 
+                    'Failed to setup meeting: ' + error.message;
             }
         }
 
+        // START AUDIO & VIDEO
         async function startAudioAndVideo() {
             try {
-                const audioInputDevices = await meetingSession.audioVideo.listAudioInputDevices();
-                await meetingSession.audioVideo.chooseAudioInputDevice(audioInputDevices[0]?.deviceId || null);
+                const audioVideo = meetingSession.audioVideo;
 
-                const videoInputDevices = await meetingSession.audioVideo.listVideoInputDevices();
-                await meetingSession.audioVideo.chooseVideoInputDevice(videoInputDevices[0]?.deviceId || null);
-                
-                meetingSession.audioVideo.startLocalVideoTile();
+                // Select first audio input device
+                const audioInputDevices = await audioVideo.listAudioInputDevices();
+                if (audioInputDevices.length > 0) {
+                    await audioVideo.chooseAudioInputDevice(audioInputDevices[0].deviceId);
+                }
 
-                meetingSession.audioVideo.addObserver({
+                // Select first video input device
+                const videoInputDevices = await audioVideo.listVideoInputDevices();
+                if (videoInputDevices.length > 0) {
+                    await audioVideo.chooseVideoInputDevice(videoInputDevices[0].deviceId);
+                    audioVideo.startLocalVideoTile();
+                }
+
+                // Observe tile updates for local/remote
+                audioVideo.addObserver({
                     videoTileDidUpdate: tileState => {
-                        const videoElement = tileState.localTile ? document.getElementById('localVideo') : document.getElementById('remoteVideo');
-                        meetingSession.audioVideo.bindVideoElement(tileState.tileId, videoElement);
+                        const videoElement = tileState.localTile 
+                            ? document.getElementById('localVideo') 
+                            : document.getElementById('remoteVideo');
+                        audioVideo.bindVideoElement(tileState.tileId, videoElement);
                     }
                 });
 
-                meetingSession.audioVideo.start();
+                // Start the meeting session
+                audioVideo.start();
                 document.getElementById("meetingInfo").innerText = "Meeting started successfully!";
             } catch (error) {
                 console.error("Error accessing camera/microphone: ", error);
@@ -119,15 +166,18 @@
             }
         }
 
+        // LEAVE MEETING
         function leaveMeeting() {
             if (meetingSession) {
                 meetingSession.audioVideo.stop();
                 document.getElementById('localVideo').srcObject = null;
                 document.getElementById('remoteVideo').srcObject = null;
-                document.getElementById('meetingInfo').textContent = 'Left meeting successfully.';
+                document.getElementById('meetingInfo').textContent = 
+                    'Left meeting successfully.';
                 meetingSession = null;
             } else {
-                document.getElementById('meetingInfo').textContent = 'No active meeting to leave.';
+                document.getElementById('meetingInfo').textContent = 
+                    'No active meeting to leave.';
             }
         }
     </script>
