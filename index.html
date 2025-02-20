@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
     
-    <!-- Load the AWS Chime SDK from CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-chime-sdk-js/3.19.1/amazon-chime-sdk.min.js"></script>
+    <!-- Load the local AWS Chime SDK -->
+    <script src="amazon-chime-sdk.min.js"></script>
 
     <style>
         .container { margin: 20px; font-family: Arial, sans-serif; }
@@ -45,15 +45,6 @@
 
     <script>
         let meetingSession;
-        
-        document.addEventListener("DOMContentLoaded", function() {
-            if (typeof ChimeSDK === "undefined") {
-                console.error("Chime SDK failed to load.");
-                alert("Chime SDK failed to load. Check script inclusion.");
-            } else {
-                console.log("Chime SDK loaded successfully", ChimeSDK.VERSION);
-            }
-        });
 
         async function createMeeting() {
             try {
@@ -91,6 +82,7 @@
                 const logger = new ChimeSDK.ConsoleLogger('ChimeMeetingLogs', ChimeSDK.LogLevel.INFO);
                 const deviceController = new ChimeSDK.DefaultDeviceController(logger);
                 const config = new ChimeSDK.MeetingSessionConfiguration(data.meeting, data.attendee);
+                config.enableEventIngestion = false; // Prevent logging error
                 meetingSession = new ChimeSDK.DefaultMeetingSession(config, logger, deviceController);
                 await startAudioAndVideo();
             } catch (error) {
