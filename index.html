@@ -38,7 +38,7 @@
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1355.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-chime-sdk-js/2.0.0/amazon-chime-sdk.min.js"></script>
     <script>
-        const apiUrl = 'YOUR_API_GATEWAY_URL'; // Replace with your HTTP API Gateway URL
+        const apiUrl = 'https://zwet6r6or1.execute-api.us-east-1.amazonaws.com/create-meeting'; 
 
         let meetingSession = null;
         const videoContainer = document.getElementById('video-container');
@@ -46,7 +46,6 @@
         // Function to create and join a meeting
         async function startMeeting() {
             try {
-                // Call your Lambda function via API Gateway to create a meeting and attendee
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
