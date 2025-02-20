@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
-    <!-- Using specific version from unpkg CDN -->
-    <script src="https://unpkg.com/amazon-chime-sdk-js@3.11.0/dist/amazon-chime-sdk.min.js"></script>
+    <!-- No script tag here - we'll load the SDK dynamically -->
     <style>
         .container { 
             margin: 20px; 
@@ -45,6 +44,10 @@
         button:hover {
             background: #1976D2;
         }
+        button:disabled {
+            background: #b0bec5;
+            cursor: not-allowed;
+        }
         #meetingInfo {
             margin: 10px 0;
             padding: 10px;
@@ -66,21 +69,40 @@
             border-radius: 4px;
             width: 300px;
         }
+        #sdkStatus {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .status-ok {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status-error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .status-loading {
+            background-color: #fff8e1;
+            color: #f57f17;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>AWS Chime Meeting</h2>
         
+        <div id="sdkStatus" class="status-loading">Loading AWS Chime SDK...</div>
+        
         <div class="join-form">
             <h3>Join Existing Meeting</h3>
             <input type="text" id="meetingIdInput" placeholder="Enter Meeting ID">
-            <button onclick="joinMeeting()">Join Meeting</button>
+            <button id="joinBtn" disabled onclick="joinMeeting()">Join Meeting</button>
         </div>
 
         <div class="controls">
-            <button onclick="createMeeting()">Create New Meeting</button>
-            <button onclick="leaveMeeting()">Leave Meeting</button>
+            <button id="createBtn" disabled onclick="createMeeting()">Create New Meeting</button>
+            <button id="leaveBtn" disabled onclick="leaveMeeting()">Leave Meeting</button>
         </div>
 
         <div id="meetingInfo">Meeting info will appear here...</div>
@@ -97,23 +119,67 @@
 
     <script>
         let meetingSession;
+        const statusDiv = document.getElementById('sdkStatus');
+        const createBtn = document.getElementById('createBtn');
+        const joinBtn = document.getElementById('joinBtn');
+        const leaveBtn = document.getElementById('leaveBtn');
         
-        // Check if AWS Chime SDK is loaded properly
-        window.onload = function() {
-            if (typeof ChimeSDK === 'undefined') {
-                console.error("AWS Chime SDK failed to load.");
-                document.getElementById('meetingInfo').textContent = 
-                    'Error: AWS Chime SDK failed to load.\nPlease check your network connection and refresh the page.';
-                
-                // Disable buttons if SDK isn't loaded
-                document.querySelectorAll('button').forEach(button => {
-                    button.disabled = true;
-                });
-                return;
-            } else {
-                console.log("AWS Chime SDK loaded successfully.");
+        // CDN URLs to try in order
+        const cdnUrls = [
+            'https://unpkg.com/amazon-chime-sdk-js@3.11.0/dist/amazon-chime-sdk.min.js',
+            'https://cdn.jsdelivr.net/npm/amazon-chime-sdk-js@3.11.0/dist/amazon-chime-sdk.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/amazon-chime-sdk-js/3.11.0/amazon-chime-sdk.min.js'
+        ];
+        
+        // Try loading the SDK from multiple CDNs
+        async function loadSDK() {
+            statusDiv.textContent = 'Attempting to load AWS Chime SDK...';
+            statusDiv.className = 'status-loading';
+            
+            for (let i = 0; i < cdnUrls.length; i++) {
+                try {
+                    await loadScript(cdnUrls[i]);
+                    // If we get here, the script loaded successfully
+                    statusDiv.textContent = '✅ AWS Chime SDK loaded successfully!';
+                    statusDiv.className = 'status-ok';
+                    
+                    // Enable buttons
+                    createBtn.disabled = false;
+                    joinBtn.disabled = false;
+                    leaveBtn.disabled = false;
+                    
+                    return true;
+                } catch (e) {
+                    console.warn(`Failed to load SDK from ${cdnUrls[i]}`, e);
+                    // Continue to next CDN
+                }
             }
-        };
+            
+            // If we get here, all CDNs failed
+            statusDiv.textContent = '❌ Failed to load AWS Chime SDK from all CDNs. Please check your network connection.';
+            statusDiv.className = 'status-error';
+            return false;
+        }
+        
+        // Promise-based script loader
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    if (typeof ChimeSDK !== 'undefined') {
+                        resolve();
+                    } else {
+                        reject(new Error('Script loaded but SDK not defined'));
+                    }
+                };
+                script.onerror = () => reject(new Error(`Failed to load script from ${src}`));
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Load the SDK when the page loads
+        window.addEventListener('load', loadSDK);
 
         async function createMeeting() {
             if (typeof ChimeSDK === 'undefined') {
