@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS Chime Meeting</title>
-    <!-- Using specific version from the official AWS CDN -->
-    <script src="https://sdk.chime.aws/js/amazon-chime-sdk-js-3.11.0.min.js"></script>
+    <!-- Using specific version from unpkg CDN -->
+    <script src="https://unpkg.com/amazon-chime-sdk-js@3.11.0/dist/amazon-chime-sdk.min.js"></script>
     <style>
         .container { 
             margin: 20px; 
@@ -100,7 +100,7 @@
         
         // Check if AWS Chime SDK is loaded properly
         window.onload = function() {
-            if (typeof AWS === 'undefined' || typeof AWS.Chime === 'undefined') {
+            if (typeof ChimeSDK === 'undefined') {
                 console.error("AWS Chime SDK failed to load.");
                 document.getElementById('meetingInfo').textContent = 
                     'Error: AWS Chime SDK failed to load.\nPlease check your network connection and refresh the page.';
@@ -116,7 +116,7 @@
         };
 
         async function createMeeting() {
-            if (typeof AWS === 'undefined' || typeof AWS.Chime === 'undefined') {
+            if (typeof ChimeSDK === 'undefined') {
                 alert("AWS Chime SDK is not loaded. Please refresh the page.");
                 return;
             }
@@ -142,7 +142,7 @@
         }
 
         async function joinMeeting() {
-            if (typeof AWS === 'undefined' || typeof AWS.Chime === 'undefined') {
+            if (typeof ChimeSDK === 'undefined') {
                 alert("AWS Chime SDK is not loaded. Please refresh the page.");
                 return;
             }
@@ -173,19 +173,19 @@
 
         async function setupMeetingSession(data) {
             try {
-                const logger = new AWS.Chime.ConsoleLogger(
+                const logger = new ChimeSDK.ConsoleLogger(
                     'ChimeMeetingLogs',
-                    AWS.Chime.LogLevel.INFO
+                    ChimeSDK.LogLevel.INFO
                 );
 
-                const deviceController = new AWS.Chime.DefaultDeviceController(logger);
+                const deviceController = new ChimeSDK.DefaultDeviceController(logger);
 
-                const configuration = new AWS.Chime.MeetingSessionConfiguration(
+                const configuration = new ChimeSDK.MeetingSessionConfiguration(
                     data.meeting,
                     data.attendee
                 );
 
-                meetingSession = new AWS.Chime.DefaultMeetingSession(
+                meetingSession = new ChimeSDK.DefaultMeetingSession(
                     configuration,
                     logger,
                     deviceController
